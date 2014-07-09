@@ -5,6 +5,8 @@ This application is a work in progress build to run a DIY pick and place machine
 
 The USB controller board prototype is on http://briandorey.com/post/pick-and-place-controller-v3-part-1.aspx
 
+Photos and info for the completed driver board are on http://briandorey.com/post/pick-and-place-controller-v3-part-2.aspx
+
 Full details of this project are on my blog at http://www.briandorey.com/
 
 The project was built under Visual Studio 2013.
@@ -13,3 +15,7 @@ The project requires KMotion to be installed from
 
 http://dynomotion.com/Software/Download.html
 The build path on the project is currently set to: C:\KMotion432\KMotion\Release\ and this would need to be updated to build to the correct folder for different versions of the KMotion software.
+
+The PIC Firmware directory contains the firmware for the MicroChip microcontroller used on the board.
+
+The Hardware directory contains the Diptrace pcb files.
