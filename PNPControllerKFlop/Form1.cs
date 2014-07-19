@@ -13,6 +13,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Forms.RibbonHelpers;
 using System.Net;
+using System.Diagnostics;
 using usbGenericHidCommunications;
 
 namespace PNPControllerKFlop
@@ -20,7 +21,10 @@ namespace PNPControllerKFlop
     public partial class Form1 : RibbonForm
     {
         // bed settings
-        public double NeedleZHeight = -38;
+        public double NeedleZHeight = 35.4;
+        public double Xoffset = -0.116;
+        public double Yoffset = 0.0;
+
         public double NeedleXSpacing = -32.2;
         public double dblPCBThickness = 1.6;
         public int FeedRate = 20000;
@@ -41,7 +45,7 @@ namespace PNPControllerKFlop
         private usbDevice usbController;
         byte BaseCameraPWM = 150;
         byte HeadCameraPWM = 150;
-        byte VibrationMotorSpeed = 150;
+        byte VibrationMotorSpeed = 250;
 
         // manual picker selector
         public int currentfeeder = 0;
@@ -65,7 +69,7 @@ namespace PNPControllerKFlop
         public Form1()
         {
             InitializeComponent();
-                /*
+              
 
             usbController = new usbDevice(0x04D8, 0x0042);
 
@@ -94,7 +98,7 @@ namespace PNPControllerKFlop
            
             csvload.SetupGridView(dataGridView1);
 
-            */
+            
             // setup manual feeder single picker list
 
             
@@ -135,8 +139,11 @@ namespace PNPControllerKFlop
             usbController.setHeadCameraPWM(byte.Parse(ribbonTextBoxHeadLedBrightness.TextBoxText));
            // usbController.setVibrationMotorSpeed(byte.Parse(ribbonTextBoxMotorPWM.TextBoxText));
             usbController.setVibrationMotorSpeed(250);
+            usbController.setVAC1(false);
+            usbController.setVAC2(false);
            // usbController.setResetFeeder();
-            SetFeederOutputs(15);
+           // SetFeederOutputs(15);
+            /*
             Thread.Sleep(200);
             
             usbController.setVibrationMotor(true);
@@ -158,16 +165,18 @@ namespace PNPControllerKFlop
             Thread.Sleep(500);
             usbController.setVAC2(true);
             Thread.Sleep(500);
-            usbController.setVAC2(false);
+            
+             * */
         }
 
         public double CalcAZHeight(double targetheight)
         {
-            return NeedleZHeight + targetheight;
+            return NeedleZHeight - targetheight;
+           // return targetheight;
         }
         public double CalcAZPlaceHeight(double targetheight)
         {
-            return (NeedleZHeight + targetheight) + dblPCBThickness;
+            return (NeedleZHeight - targetheight) - dblPCBThickness;
         }
 
         public double CalcXwithNeedleSpacing(double target)
@@ -275,11 +284,8 @@ namespace PNPControllerKFlop
             backgroundWorkerDoCommand.ProgressChanged +=
                 new ProgressChangedEventHandler(
             backgroundWorkerDoCommand_ProgressChanged);
-
-
-
-            backgroundWorkerGetFeeder.DoWork +=
-                new DoWorkEventHandler(backgroundWorkerGetFeeder_DoWork);
+            
+                        
             backgroundWorkerGetFeeder.RunWorkerCompleted +=
                 new RunWorkerCompletedEventHandler(
             backgroundWorkerGetFeeder_RunWorkerCompleted);
@@ -370,41 +376,7 @@ namespace PNPControllerKFlop
             }
         }
 
-        private void backgroundWorkerGetFeeder_DoWork(object sender, DoWorkEventArgs e)
-        {
-            // get current position, move to feeder, pick component and return to previous position
-            BackgroundWorker worker = sender as BackgroundWorker;
-
-            double currentx = kf.GetDROX();
-            double currenty = kf.GetDROY();
-            double feedrate = double.Parse(ribbonTextBoxFeedRate.TextBoxText);
-
-            SetFeederOutputs(currentfeeder);
-            double feederPosX = cf.GetfeederPosX(currentfeeder.ToString());
-            double feederPosY = cf.GetfeederPosY(currentfeeder.ToString());
-            double feederPosZ = cf.GetfeederPosZ(currentfeeder.ToString());
-
-
-
-
-           // RunMach3Command(Script, "F" + ribbonTextBoxFeedRate.TextBoxText);
-            ChangeVacOutput(1, false);
-            kf.MoveAAxis(CalcAZHeight(ClearHeight));
-           // RunMach3Command(Script, "G01 A" + CalcAZHeight(ClearHeight));
-            kf.MoveSingleFeed(feedrate, feederPosX, feederPosY, ClearHeight, ClearHeight, 0, 0);
-           // RunMach3Command(Script, "G01 X" + feederPosX.ToString() + "  Y" + feederPosY);
-            CheckFeederReady();
-            kf.MoveAAxis(CalcAZHeight(feederPosZ));
-           // RunMach3Command(Script, "G01 A" + CalcAZHeight(feederPosZ)); // go down and turn on suction
-            ChangeVacOutput(1, true);
-            kf.MoveAAxis(CalcAZHeight(ClearHeight));
-           // RunMach3Command(Script, "G01 A" + CalcAZHeight(ClearHeight));
-            kf.MoveSingleFeed(feedrate, currentx, currenty, ClearHeight, ClearHeight, 0, 0);
-           // RunMach3Command(Script, "G01 X" + currentx.ToString() + "  Y" + currenty.ToString());
-
-            //worker.ReportProgress(1);
-        }
-
+        
         private void backgroundWorkerUpdateDRO_DoWork_1(object sender, DoWorkEventArgs e)
         {
             BackgroundWorker worker = sender as BackgroundWorker;
@@ -414,16 +386,20 @@ namespace PNPControllerKFlop
             {
                 e.Cancel = true;
             }
-            SetDROText(ribbonTextBoxDROX, kf.GetDROX().ToString());
-            SetDROText(ribbonTextBoxDROY, kf.GetDROY().ToString());
-            SetDROText(ribbonTextBoxDROZ, kf.GetDROZ().ToString());
-            SetDROText(ribbonTextBoxDROA, kf.GetDROA().ToString());
-            SetDROText(ribbonTextBoxDROB, kf.GetDROB().ToString());
-            SetDROText(ribbonTextBoxDROC, kf.GetDROC().ToString());
+            double x, y, z, a, b, c = 0;
+            kf.GetDRO(out x, out y, out z, out a, out b, out c);
+
+            SetDROText(ribbonTextBoxDROX, x.ToString());
+            SetDROText(ribbonTextBoxDROY, y.ToString());
+            SetDROText(ribbonTextBoxDROZ, z.ToString());
+            SetDROText(ribbonTextBoxDROA, a.ToString());
+            SetDROText(ribbonTextBoxDROB, b.ToString());
+            SetDROText(ribbonTextBoxDROC, c.ToString());
             worker.ReportProgress(100);
         }
         private void backgroundWorkerDoCommand_DoWork(object sender, DoWorkEventArgs e)
         {
+           
             BackgroundWorker worker = sender as BackgroundWorker;
             DataView rundata = new DataView();
             rundata = dtom3.ConvertToGCode(dataGridView1, Double.Parse(ribbonTextBoxBoardOffsetX.TextBoxText), Double.Parse(ribbonTextBoxBoardOffsetY.TextBoxText));
@@ -461,6 +437,17 @@ namespace PNPControllerKFlop
 
                 double progresspert = 0;
                 double progresspertcalc = 100 / totalrows;
+
+                double feederPosX = 0;
+                double feederPosY = 0;
+                double feederPosZ = 0;
+                double placePosX = 0;
+                double placePosY = 0;
+            
+                double ComponentRotation = 0;
+                double DefaultRotation = 0;
+                double componentHeight = 0;
+                double newrotation = 0;
                 while (currentrow < totalrows)
                 {
 
@@ -474,6 +461,18 @@ namespace PNPControllerKFlop
                         break;
                     }
 
+                    feederPosX = double.Parse(rundata[currentrow]["feederPosX"].ToString()) + Xoffset;
+                    feederPosY = double.Parse(rundata[currentrow]["feederPosY"].ToString()) + Yoffset;
+                    feederPosZ = double.Parse(rundata[currentrow]["feederPosZ"].ToString());
+                    placePosX = double.Parse(rundata[currentrow]["PosX"].ToString()) + Xoffset;
+                    placePosY = double.Parse(rundata[currentrow]["PosY"].ToString()) + Yoffset;
+                   
+                    ComponentRotation = double.Parse(rundata[currentrow]["ComponentRotation"].ToString());
+                    DefaultRotation = double.Parse(rundata[currentrow]["DefaultRotation"].ToString());
+
+                    componentHeight = double.Parse(rundata[currentrow]["ComponentHeight"].ToString());
+
+
                     if (currentrow == 0)
                     {
                         SetFeederOutputs(Int32.Parse(rundata[currentrow]["FeederNumber"].ToString())); // send feeder to position
@@ -483,74 +482,72 @@ namespace PNPControllerKFlop
                     StetActiveComponentText(rundata[currentrow]["RefDes"].ToString());
 
 
-                    
 
-                    if (!rundata[currentrow]["TapeFeeder"].ToString().Equals("True"))
-                    {
-                        kf.MoveZAxis(CalcAZHeight(ClearHeight));
-                       // RunMach3Command(Script, "G01 Z" + CalcAZHeight(ClearHeight));
-                    }
-                    kf.MoveSingleFeed(feedrate, double.Parse(rundata[currentrow]["feederPosX"].ToString()), double.Parse(rundata[currentrow]["feederPosY"].ToString()), ClearHeight, ClearHeight, 0, 0);
-                    //RunMach3Command(Script, "G01 X" + rundata[currentrow]["feederPosX"].ToString() + "  Y" + rundata[currentrow]["feederPosY"].ToString());
+                    kf.MoveSingleFeed(feedrate, feederPosX, feederPosY, ClearHeight, ClearHeight, 0, 0);
 
                     SetCurrentCommandText("Picking Component");
                     if (rundata[currentrow]["TapeFeeder"].ToString().Equals("True"))
                     {
-                        // use picker 1
-                        kf.MoveZAxis(CalcAZHeight(Double.Parse(rundata[currentrow]["feederPosZ"].ToString())));
-                        //RunMach3Command(Script, "G01 Z" + CalcAZHeight(Double.Parse(rundata[currentrow]["feederPosZ"].ToString()))); // go down and turn on suction
-                        ChangeVacOutput(1, true);
-                        kf.MoveZAxis(CalcAZHeight(ClearHeight));
-                       // RunMach3Command(Script, "G01 Z" + CalcAZHeight(LowClearHeight));
-                        
 
+                        while (!usbController.getFeederReadyStatus())
+                        {
+                            Thread.Sleep(10);
+                        }
+                        Thread.Sleep(50);
+                        // use picker 1
+                        kf.MoveSingleFeed(feedrate, feederPosX, feederPosY, CalcAZHeight(feederPosZ), ClearHeight, 0, 0);
+                        Thread.Sleep(50);
+                        // go down and turn on suction
+                        ChangeVacOutput(1, true);
+                        Thread.Sleep(50);
+                        kf.MoveSingleFeed(feedrate, feederPosX, feederPosY, ClearHeight, ClearHeight, 0, 0);
 
                     }
                     else
                     {
                         // use picker 2
-
-                        kf.MoveAAxis(CalcAZHeight(Double.Parse(rundata[currentrow]["feederPosZ"].ToString())));
-                        //(Script, "G01 A" + CalcAZHeight(Double.Parse(rundata[currentrow]["feederPosZ"].ToString()))); // go down and turn on suction
+                        kf.MoveSingleFeed(feedrate, feederPosX, feederPosY, ClearHeight, CalcAZHeight(feederPosZ), 0, 0);
+                        Thread.Sleep(50);
                         ChangeVacOutput(2, true);
                         //Thread.Sleep(500);
-                        kf.MoveAAxis(CalcAZHeight(ClearHeight));
-                        //RunMach3Command(Script, "G01 A" + CalcAZHeight(ClearHeight));
+                        Thread.Sleep(50);
+                        kf.MoveSingleFeed(feedrate, feederPosX, feederPosY, ClearHeight, ClearHeight, 0, 0);
                     }
                     // send picker to pick next item
                     if (currentrow >= 0 && (currentrow + 1) < totalrows)
                     {
+                        Thread.Sleep(100);
                         SetFeederOutputs(Int32.Parse(rundata[currentrow + 1]["FeederNumber"].ToString())); // send feeder to position
                     }
 
                     // rotate head
-                    double ComponentRotation = Double.Parse(rundata[currentrow]["ComponentRotation"].ToString());
-                    double DefaultRotation = Double.Parse(rundata[currentrow]["DefaultRotation"].ToString());
+                 
 
-
-
-                    //RunMach3Command(Script, "G92 B0 C0 ");
                     SetResultsLabelText("Placing Component");
                     if (rundata[currentrow]["TapeFeeder"].ToString().Equals("True"))
                     {
                         // use picker 1
                         if (DefaultRotation != ComponentRotation)
                         {
-                            double newrotation = DefaultRotation + ComponentRotation;
-                            kf.MoveSingleFeed(feedrate, double.Parse(rundata[currentrow]["PosX"].ToString()), double.Parse(rundata[currentrow]["PosY"].ToString()), ClearHeight, ClearHeight, 0, newrotation);
-                            //RunMach3Command(Script, "G01 C" + newrotation.ToString() + " X" + rundata[currentrow]["PosX"].ToString() + "  Y" + rundata[currentrow]["PosY"].ToString());
+                            newrotation = DefaultRotation + ComponentRotation;
+                            if (ComponentRotation == 0)
+                            {
+                                newrotation = DefaultRotation;
+
+                            }
+                            kf.MoveSingleFeed(feedrate, placePosX, placePosY, ClearHeight, ClearHeight, 0, newrotation);
                         }
                         else
                         {
-                            kf.MoveSingleFeed(feedrate, double.Parse(rundata[currentrow]["PosX"].ToString()), double.Parse(rundata[currentrow]["PosY"].ToString()), ClearHeight, ClearHeight, 0, 0);
-                            //RunMach3Command(Script, "G01 X" + rundata[currentrow]["PosX"].ToString() + "  Y" + rundata[currentrow]["PosY"].ToString());
+                            kf.MoveSingleFeed(feedrate, placePosX, placePosY, ClearHeight, ClearHeight, 0, 0);
                         }
-
-                        kf.MoveZAxis(CalcAZPlaceHeight(Double.Parse(rundata[currentrow]["ComponentHeight"].ToString())));
-                        //RunMach3Command(Script, "G01 Z" + CalcAZPlaceHeight(Double.Parse(rundata[currentrow]["ComponentHeight"].ToString()))); // go down and turn off suction
+                        SetResultsLabelText("ComponentHeight: " + CalcAZPlaceHeight(componentHeight).ToString());
+                        kf.MoveSingleFeed(feedrate, placePosX, placePosY, CalcAZPlaceHeight(componentHeight), ClearHeight, 0, newrotation);
+                        Thread.Sleep(100);
                         ChangeVacOutput(1, false);
-                        kf.MoveZAxis(CalcAZHeight(LowClearHeight));
-                        //RunMach3Command(Script, "G01 Z" + CalcAZHeight(LowClearHeight));
+                        Thread.Sleep(200);
+                        kf.MoveSingleFeed(feedrate, placePosX, placePosY, ClearHeight, ClearHeight, 0, newrotation);
+                       
                     }
                     else
                     {
@@ -558,20 +555,32 @@ namespace PNPControllerKFlop
                         if (DefaultRotation != ComponentRotation)
                         {
 
-                            double newrotation = DefaultRotation + ComponentRotation;
-                            kf.MoveSingleFeed(feedrate, CalcXwithNeedleSpacing(double.Parse(rundata[currentrow]["PosX"].ToString())), double.Parse(rundata[currentrow]["PosY"].ToString()), ClearHeight, ClearHeight, newrotation, 0);
-                            //RunMach3Command(Script, "G01 B" + newrotation.ToString() + " X" + CalcXwithNeedleSpacing(Double.Parse(rundata[currentrow]["PosX"].ToString())).ToString() + "  Y" + rundata[currentrow]["PosY"].ToString());
+                            newrotation = DefaultRotation + ComponentRotation;
+                            if (ComponentRotation == 0)
+                            {
+                                newrotation = DefaultRotation;
+
+                            }
+                            kf.MoveSingleFeed(feedrate, CalcXwithNeedleSpacing(placePosX), placePosY, ClearHeight, ClearHeight, newrotation, 0);
+
+                            kf.MoveSingleFeed(feedrate, CalcXwithNeedleSpacing(placePosX), placePosY, ClearHeight, CalcAZPlaceHeight(componentHeight), newrotation, 0);
+                            // go down and turn off suction
+                            Thread.Sleep(150);
+                            ChangeVacOutput(2, false);
+                            Thread.Sleep(50);
+                            kf.MoveSingleFeed(feedrate, CalcXwithNeedleSpacing(placePosX), placePosY, ClearHeight, ClearHeight, newrotation, 0);
                         }
                         else
                         {
-                            kf.MoveSingleFeed(feedrate, CalcXwithNeedleSpacing(double.Parse(rundata[currentrow]["PosX"].ToString())), double.Parse(rundata[currentrow]["PosY"].ToString()), ClearHeight, ClearHeight, 0, 0);
-                           // RunMach3Command(Script, "G01 X" + CalcXwithNeedleSpacing(Double.Parse(rundata[currentrow]["PosX"].ToString())).ToString() + "  Y" + rundata[currentrow]["PosY"].ToString());
+                            kf.MoveSingleFeed(feedrate, CalcXwithNeedleSpacing(placePosX), placePosY, ClearHeight, ClearHeight, 0, 0);
+                            kf.MoveSingleFeed(feedrate, CalcXwithNeedleSpacing(placePosX), placePosY, ClearHeight, CalcAZPlaceHeight(componentHeight), 0, 0);
+                            Thread.Sleep(150);
+                            ChangeVacOutput(2, false);
+                            Thread.Sleep(50);
+                            kf.MoveSingleFeed(feedrate, CalcXwithNeedleSpacing(placePosX), placePosY, ClearHeight, ClearHeight, 0, 0);
                         }
-                        kf.MoveAAxis(CalcAZPlaceHeight(Double.Parse(rundata[currentrow]["ComponentHeight"].ToString())));
-                        //RunMach3Command(Script, "G01 A" + CalcAZPlaceHeight(Double.Parse(rundata[currentrow]["ComponentHeight"].ToString()))); // go down and turn off suction
-                        ChangeVacOutput(2, false);
-                        kf.MoveAAxis(CalcAZHeight(ClearHeight));
-                        //RunMach3Command(Script, "G01 A" + CalcAZHeight(ClearHeight));
+
+                      
                     }
 
 
@@ -597,32 +606,13 @@ namespace PNPControllerKFlop
             worker.ReportProgress(100);
             // home all axis and zero
             SetResultsLabelText("Home and Reset");
-           
+            //kf.HomeAll();
 
-            Thread thrd = new Thread(new ThreadStart(DoHomeAll));
-            thrd.Start();
-            thrd.IsBackground = true;
+            //Thread thrd = new Thread(new ThreadStart(DoHomeAll));
+            //thrd.Start();
+           // thrd.IsBackground = true;
         }
-        /*
-        public bool RunMach3Command(Mach4.IMyScriptObject script, string command)
-        {
-            SetCurrentCommandText(command);
-            try
-            {
-            script.Code(command);
-            }
-            catch { }
-            try
-            {
-                while (script.IsMoving() != 0)
-                {
-                    Thread.Sleep(10);
-                }
-            }
-            catch { }
-            return true;
-        }
-        */
+       
         
         public void ChangeVacOutput(int vac, bool turnon)
         {
@@ -659,8 +649,6 @@ namespace PNPControllerKFlop
         }
         public void SetFeederOutputs(int feedercommand)
         {
-            //  Mach = (Mach4.IMach4)Marshal.GetActiveObject("Mach4.Document");
-            //   Script = (Mach4.IMyScriptObject)Mach.GetScriptDispatch();
             usbController.setGotoFeeder(Byte.Parse(feedercommand.ToString()));
 
             // check if on main feeder rack
@@ -727,17 +715,17 @@ namespace PNPControllerKFlop
 
         private void backgroundWorkerChipFeeder_DoWork(object sender, DoWorkEventArgs e)
         {
-            usbController.setVibrationMotorSpeed(250);
+            //usbController.setVibrationMotorSpeed(250);
             usbController.setVibrationMotor(true);
             int i = 0;
             while (i < chipfeederms)
             {
-                Thread.Sleep(1);
-                i++;
+                Thread.Sleep(10);
+                i = i + 10;
             }
             
             usbController.setVibrationMotor(false);
-            usbController.setVibrationMotorSpeed(250);
+            //usbController.setVibrationMotorSpeed(250);
         }
 
        
@@ -862,7 +850,8 @@ namespace PNPControllerKFlop
      
         private void ribbonButtonStart_Click(object sender, EventArgs e)
         {
-            SaveSettings();
+            kf.setAlltoZero();
+             SaveSettings();
             FeedRate = Int32.Parse(ribbonTextBoxFeedRate.TextBoxText);
 
 
@@ -877,11 +866,11 @@ namespace PNPControllerKFlop
 
         private void ribbonButtonEStop_Click_1(object sender, EventArgs e)
         {
-
+            backgroundWorkerDoCommand.CancelAsync();
             Thread thrd = new Thread(new ThreadStart(DoEStop));
             thrd.Start();
             thrd.IsBackground = true;
-           
+            kf.initdevicesettings();
            
         }
         private void DoEStop()
@@ -1197,7 +1186,7 @@ namespace PNPControllerKFlop
              }
              catch (Exception e)
              {
-                 Console.WriteLine(e.Message);
+                 Debug.WriteLine(e.Message);
              }
 
 

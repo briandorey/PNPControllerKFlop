@@ -6,6 +6,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace PNPControllerKFlop
 {
@@ -49,14 +50,14 @@ namespace PNPControllerKFlop
                         context.Response.Close();
                         //writing the sent message into the console
 
-                        Console.WriteLine("Command: {0}", Mach3Command);
+                        Debug.WriteLine("Command: {0}", Mach3Command);
                         Console.ReadLine();
                     });
                     t.Start();
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e.Message);
+                    Debug.WriteLine(e.Message);
                 }
 
 

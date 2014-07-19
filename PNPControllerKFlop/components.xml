@@ -54,7 +54,7 @@
     <ComponentCode>5</ComponentCode>
     <ComponentValue>100nF</ComponentValue>
     <Package>0805</Package>
-    <ComponentHeight>0.8</ComponentHeight>
+    <ComponentHeight>0.7</ComponentHeight>
     <PickerHeight>3.516</PickerHeight>
     <DefaultRotation>90</DefaultRotation>
     <VerifywithCamera>false</VerifywithCamera>
@@ -135,7 +135,7 @@
     <ComponentValue>MCP3428</ComponentValue>
     <Package>SOT14</Package>
     <ComponentHeight>1.5</ComponentHeight>
-    <PickerHeight>9.7</PickerHeight>
+    <PickerHeight>9.3</PickerHeight>
     <DefaultRotation>0</DefaultRotation>
     <VerifywithCamera>false</VerifywithCamera>
     <TapeFeeder>false</TapeFeeder>

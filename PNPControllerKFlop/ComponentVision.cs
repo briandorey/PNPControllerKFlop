@@ -184,8 +184,8 @@ namespace PNPControllerKFlop
             {
                 e.Cancel = true;
             }
-            SetTextX(kf.GetDROX().ToString());
-            SetTextY(kf.GetDROY().ToString());
+            //SetTextX(kf.GetDROX().ToString());
+            //SetTextY(kf.GetDROY().ToString());
           
         }
     }
